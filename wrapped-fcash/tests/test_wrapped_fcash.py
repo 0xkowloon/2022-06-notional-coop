@@ -21,34 +21,40 @@ def run_around_tests():
 def env():
     name = network.show_active()
     if name == 'mainnet-fork':
-        return getEnvironment('mainnet')
+        environment = getEnvironment('mainnet')
+        environment.notional.upgradeTo('0x16eD130F7A6dcAc7e3B0617A7bafa4b470189962', {'from': environment.owner})
+        environment.notional.updateAssetRate(1, "0x8E3D447eBE244db6D28E2303bCa86Ef3033CFAd6", {"from": environment.owner})
+        environment.notional.updateAssetRate(2, "0x719993E82974f5b5eA0c5ebA25c260CD5AF78E00", {"from": environment.owner})
+        environment.notional.updateAssetRate(3, "0x612741825ACedC6F88D8709319fe65bCB015C693", {"from": environment.owner})
+        environment.notional.updateAssetRate(4, "0x39D9590721331B13C8e9A42941a2B961B513E69d", {"from": environment.owner})
+        return environment
     elif name == 'kovan-fork':
         return getEnvironment('kovan')
 
-@pytest.fixture() 
+@pytest.fixture()
 def beacon(wfCashERC4626, nUpgradeableBeacon, env):
     impl = wfCashERC4626.deploy(env.notional.address, env.tokens['WETH'], {"from": env.deployer})
     return nUpgradeableBeacon.deploy(impl.address, {"from": env.deployer})
 
-@pytest.fixture() 
+@pytest.fixture()
 def factory(WrappedfCashFactory, beacon, env):
     return WrappedfCashFactory.deploy(beacon.address, {"from": env.deployer})
 
-@pytest.fixture() 
+@pytest.fixture()
 def wrapper(factory, env):
     markets = env.notional.getActiveMarkets(2)
     txn = factory.deployWrapper(2, markets[0][1])
     return Contract.from_abi("Wrapper", txn.events['WrapperDeployed']['wrapper'], wfCashERC4626.abi)
 
-@pytest.fixture() 
+@pytest.fixture()
 def lender(env, accounts):
     acct = accounts[4]
     env.tokens["DAI"].transfer(acct, 1_000_000e18, {'from': env.whales["DAI_EOA"]})
-    
+
     env.tokens["DAI"].approve(env.notional.address, 2**255-1, {'from': acct})
     env.notional.batchBalanceAndTradeAction(
         acct,
-        [ 
+        [
             get_balance_trade_action(
                 2,
                 "DepositUnderlying",
@@ -67,12 +73,12 @@ def lender(env, accounts):
 
     return acct
 
-@pytest.fixture() 
+@pytest.fixture()
 def lender_contract(env):
     env.tokens["DAI"].approve(env.notional.address, 2**255-1, {'from': env.whales["DAI_CONTRACT"]})
     env.notional.batchBalanceAndTradeAction(
         env.whales["DAI_CONTRACT"],
-        [ 
+        [
             get_balance_trade_action(
                 2,
                 "DepositUnderlying",
@@ -355,7 +361,7 @@ def test_mint_and_redeem_fcash_via_underlying(wrapper, lender, env):
         {"from": lender.address}
     )
     balanceAfter = env.tokens["DAI"].balanceOf(lender.address)
-    balanceChange = balanceAfter - balanceBefore 
+    balanceChange = balanceAfter - balanceBefore
 
     assert 9700e18 <= balanceChange and balanceChange <= 9990e18
     portfolio = env.notional.getAccount(wrapper.address)[2]
@@ -397,7 +403,7 @@ def test_mint_and_redeem_fusdc_via_underlying(factory, env):
         {"from": env.whales["USDC"].address}
     )
     balanceAfter = env.tokens["USDC"].balanceOf(env.whales["USDC"].address)
-    balanceChange = balanceAfter - balanceBefore 
+    balanceChange = balanceAfter - balanceBefore
 
     assert 9700e6 <= balanceChange and balanceChange <= 9900e6
     portfolio = env.notional.getAccount(wrapper.address)[2]
@@ -434,7 +440,7 @@ def test_mint_and_redeem_fcash_via_asset(wrapper, env, accounts):
     balanceBefore = env.tokens["cDAI"].balanceOf(acct.address)
     wrapper.redeemToAsset(10_000e8, acct.address, 0, {"from": acct.address})
     balanceAfter = env.tokens["cDAI"].balanceOf(acct.address)
-    balanceChange = balanceAfter - balanceBefore 
+    balanceChange = balanceAfter - balanceBefore
 
     assert 440_000e8 <= balanceChange and balanceChange <= 499_000e8
     portfolio = env.notional.getAccount(wrapper.address)[2]
@@ -696,7 +702,7 @@ def test_mint_and_redeem_via_weth(factory, env, accounts, lender):
     wrapper = Contract.from_abi("Wrapper", txn.events['WrapperDeployed']['wrapper'], wfCashERC4626.abi)
     wethABI = WrappedFcashProject._build.get("WETH9")["abi"]
     weth = Contract.from_abi("WETH", env.tokens["WETH"], wethABI)
-    
+
     account = accounts[1]
     weth.deposit({'from': account, 'value': 1e18})
 
@@ -721,10 +727,10 @@ def test_mint_redeem_eth_4626(factory, env, lender, accounts):
     wrapper = Contract.from_abi("Wrapper", txn.events['WrapperDeployed']['wrapper'], wfCashERC4626.abi)
     wethABI = WrappedFcashProject._build.get("WETH9")["abi"]
     weth = Contract.from_abi("WETH", env.tokens["WETH"], wethABI)
-    
+
     account = accounts[1]
     weth.deposit({'from': account, 'value': 1e18})
-    
+
     env.tokens['WETH'].approve(wrapper.address, 2**255-1, {"from": account})
     wrapper.mint(1e8, account.address, {"from": account})
     assert wrapper.balanceOf(account.address) == 1e8
