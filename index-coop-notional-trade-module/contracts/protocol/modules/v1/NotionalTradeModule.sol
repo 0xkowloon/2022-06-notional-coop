@@ -108,7 +108,7 @@ contract NotionalTradeModule is ModuleBase, ReentrancyGuard, Ownable, IModuleIss
 
     /* ============ State Variables ============ */
 
-    // Mapping for a set token, wether or not to redeem to underlying upon reaching maturity
+    // Mapping for a set token, whether or not to redeem to underlying upon reaching maturity
     mapping(ISetToken => bool) public redeemToUnderlying;
 
     // Mapping of SetToken to boolean indicating if SetToken is on allow list. Updateable by governance
@@ -212,7 +212,7 @@ contract NotionalTradeModule is ModuleBase, ReentrancyGuard, Ownable, IModuleIss
     }
 
     /**
-     * @dev MANGER ONLY: Initialize given SetToken with initial list of registered fCash positions
+     * @dev MANAGER ONLY: Initialize given SetToken with initial list of registered fCash positions
      * Redeem all fCash positions that have reached maturity for their asset token (cToken)
      * @param _setToken                     Instance of the SetToken
      */
